@@ -4,7 +4,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 // const encrypt = require('mongoose-encryption');
-const md5 = require('md5');
+// const md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 const app = express();
 app.use(express.static('public'));
@@ -40,31 +42,62 @@ app.get('/register',(req,res)=>{
 });
 
 app.post('/register',(req,res)=>{
-    const user = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
-    });
-    user.save((err)=>{
+    bcrypt.hash(req.body.password,saltRounds,(err,result)=>{
         if(!err){
-            res.render('secrets');
+            const user = new User({
+                email: req.body.username,
+                password: result
+            });
+            user.save((err)=>{
+                if(!err){
+                    res.render('secrets');
+                }else{
+                    console.log(err);
+                }
+            });
         }else{
-            console.log(err);
+            console.log(err);   
         }
     });
 });
 
 app.post('/login',(req,res)=>{
     const username = req.body.username;
-    const passwd = md5(req.body.password);
+    const passwd = req.body.password;
+
     User.findOne({email :username},(err,result)=>{
         if(result){
-            if(result.password === passwd){
-                res.render('secrets');
-            }
+            bcrypt.compare(passwd,result.password,(err,result)=>{
+                if(result===true){
+                    res.render('secrets');
+                }else{
+                    console.log('Passwords were wrong');
+                }
+            })
         }else{
             console.log(err);
         }
     });
+
+    // Below way is not working.
+    /* bcrypt.hash(req.body.password,saltRounds,(err,result)=>{
+        if(!err){
+            const passwd = result;
+            User.findOne({email :username},(err,result)=>{
+                if(result){
+                    if(result.password === passwd){
+                        res.render('secrets');
+                    }else{
+                        console.log("Here");
+                    }
+                }else{
+                    console.log(err);
+                }
+            });
+        }else{
+            console.log(err);
+        }
+    }); */
 });
 
 app.get('/submit',(req,res)=>{
